@@ -25,6 +25,9 @@ class TestIAccessLike:
             def from_domain(cls, domain):
                 return cls()
 
+            def get_fsspec_opts(self):
+                return {}
+
             def export(self):
                 return {}
 

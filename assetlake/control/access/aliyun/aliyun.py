@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+from assetlake.control.access.base.factory import AccessFactory
+from assetlake.control.access.base.protocol import IAccessLike
+from assetlake.domain.access.access import AbstractAccessDomain
+from assetlake.domain.access.platform import AccessPlatform
+from assetlake.internal.idomainobject import IDomainObject
+
+
+class AliyunAccessDomain(AbstractAccessDomain):
+    """
+    阿里云 Access Domain class for managing Alibaba Cloud credentials.
+
+    source: https://www.alibabacloud.com/help/zh/sdk/developer-reference/v2-manage-python-access-credentials
+
+    Attributes:
+        name: Name of the access profile.
+        platform: AccessPlatform fixed to ALIYUN.
+        access_key_id: 阿里云访问密钥ID。
+        access_key_secret: 阿里云访问密钥Secret。
+        region: 阿里云区域。
+        internal: 是否使用内网访问阿里云服务。
+        tags: 与访问配置文件关联的标签字典。
+
+    """
+
+    platform: AccessPlatform = AccessPlatform.ALIYUN
+    access_key_id: str | None = None
+    access_key_secret: str | None = None
+    region: str | None = None
+    internal: bool = False
+
+
+@AccessFactory.add(AccessPlatform.ALIYUN)
+class AliyunAccess(
+    IDomainObject,
+    IAccessLike,
+):
+    """
+    Aliyun access control wrapper for managing Alibaba Cloud credentials.
+
+    Attributes:
+        name: Name of the access profile.
+        platform: AccessPlatform fixed to ALIYUN.
+        access_key_id: 阿里云访问密钥ID。
+        access_key_secret: 阿里云访问密钥Secret。
+
+        tags: 与访问配置文件关联的标签字典。
+
+    """
+
+    _domain_class = AliyunAccessDomain
+
+    def __init__(
+        self,
+        name: str | None = None,
+        access_key_id: str | None = None,
+        access_key_secret: str | None = None,
+        region: str | None = None,
+        internal: bool = False,
+        tags: dict[str, str] = None,
+    ):
+        super().__init__(
+            name=name,
+            platform=AccessPlatform.ALIYUN,
+            access_key_id=access_key_id,
+            access_key_secret=access_key_secret,
+            region=region,
+            internal=internal,
+            tags=tags,
+        )
+
+    def _resolve_endpoint(
+        self,
+        service: str,
+    ) -> str | None:
+        if not self.region:
+            return None
+        else:
+            if self.internal:
+                return f"{service}-{self.region}-internal.aliyuncs.com"
+            else:
+                return f"{service}-{self.region}.aliyuncs.com"
+
+    def get_fsspec_opts(self) -> dict[str, str | None]:
+        _opts = {
+            "key": self.access_key_id,
+            "secret": self.access_key_secret,
+            "endpoint": self._resolve_endpoint("oss"),
+        }
+        _filted = {k: v for k, v in _opts.items() if v is not None}
+        return _filted
+
+    def export(self) -> dict[str, str | None]:
+        _key_id = self.access_key_id
+        _expr_key_id = None if not _key_id else _key_id[0:4] + "******"
+        _secret = self.access_key_secret
+        _expr_secret = None if not _secret else _secret[0:4] + "******"
+        return {
+            "name": self.name,
+            "platform": self.platform.value,
+            "access_key_id": _expr_key_id,
+            "access_key_secret": _expr_secret,
+            "tags": self.tags,
+        }

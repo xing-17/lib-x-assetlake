@@ -51,7 +51,7 @@ class LocalAccess(
             tags=tags,
         )
 
-    def get_fsspec_kwargs(self) -> dict[str, str | None]:
+    def get_fsspec_opts(self) -> dict[str, str | None]:
         return {}
 
     def export(self) -> dict[str, str | None]:
