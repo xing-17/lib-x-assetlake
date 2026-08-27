@@ -1,4 +1,8 @@
 from __future__ import annotations
+from logging import config
+from typing import Any
+
+from duckdb import DuckDBPyConnection
 
 from assetlake.control.access.base.factory import AccessFactory
 from assetlake.control.access.base.protocol import IAccessLike
@@ -89,7 +93,7 @@ class AWSAccess(
         }
         _filtered = {k: v for k, v in _opts.items() if v is not None}
         return _filtered
-
+    
     def export(self) -> dict[str, str | None]:
         _key_id = self.access_key_id
         _expr_key_id = None if not _key_id else _key_id[0:4] + "******"

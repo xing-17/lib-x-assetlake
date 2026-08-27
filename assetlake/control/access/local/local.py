@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from duckdb import DuckDBPyConnection
+from typing import Any
+
 from assetlake.control.access.base.factory import AccessFactory
 from assetlake.control.access.base.protocol import IAccessLike
 from assetlake.domain.access.access import AbstractAccessDomain
