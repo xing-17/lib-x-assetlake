@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from assetlake.domain.access.access import AbstractAccessDomain
 from assetlake.domain.access.platform import AccessPlatform
 
 
@@ -16,12 +15,6 @@ class IAccessLike(Protocol):
     def from_dict(
         cls,
         data: dict[str, Any],
-    ) -> IAccessLike: ...
-
-    @classmethod
-    def from_domain(
-        cls,
-        domain: AbstractAccessDomain,
     ) -> IAccessLike: ...
 
     def get_fsspec_opts(self) -> dict[str, str | None]: ...

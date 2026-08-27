@@ -14,14 +14,16 @@ class LocalAssetObject(AbstractAssetObjectDomain):
     A local file system object.
 
     Attributes:
-        uri: (str) Local file URI of the object (e.g., file:///path/to/object)
-        filesystem: Fixed to AssetFilesystem.LOCAL
-        objectkind: Kind of the object, default: OBJECT
-        size: Size of the object in bytes
-        modified_at: Last modified timestamp of the object
-        partitions: Partition values extracted from the local file path (if applicable)
+        uri: (str) Local file URI of the object (e.g., /path/to/object)
+        filesystem (AssetFilesystem): Fixed to AssetFilesystem.LOCAL
+        objectkind (AssetObjectkind): Kind of the object, default: OBJECT
+        size (int | None): Size of the object in bytes
+        modified_at (datetime | None): Last modified timestamp of the object
+        partitions (dict[str, str] | None): Partition values extracted from the local file path
+        path (Path): Computed property that returns the Path object corresponding to the URI.
 
     """
+
     filesystem: AssetFilesystem = AssetFilesystem.LOCAL
     type: str | None = None
     created_at: datetime | None = None

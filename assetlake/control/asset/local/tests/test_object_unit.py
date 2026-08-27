@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
-
 from assetlake.control.asset.local.object import LocalAssetObject
 from assetlake.domain.asset.filesystem import AssetFilesystem
 
@@ -17,7 +15,7 @@ class TestLocalAssetObjectCreation:
     def test_create_minimal_object(self):
         """Test creating object with minimal required fields."""
         obj = LocalAssetObject(uri="/data/file.parquet")
-        
+
         assert obj.uri == "/data/file.parquet"
         assert obj.filesystem == AssetFilesystem.LOCAL
         assert obj.size is None
@@ -30,7 +28,7 @@ class TestLocalAssetObjectCreation:
         modified = datetime(2024, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
         created = datetime(2024, 3, 1, 8, 0, 0, tzinfo=timezone.utc)
         metadata = {"uid": 1000, "gid": 1000, "mode": 0o644}
-        
+
         obj = LocalAssetObject(
             uri="/data/test.parquet",
             size=1024,
@@ -39,7 +37,7 @@ class TestLocalAssetObjectCreation:
             type="file",
             metadata=metadata,
         )
-        
+
         assert obj.uri == "/data/test.parquet"
         assert obj.size == 1024
         assert obj.modified_at == modified
@@ -87,7 +85,7 @@ class TestLocalAssetObjectPartitionInference:
     def test_partitions_extracted_from_uri(self):
         """Test that partitions are auto-extracted from path with key=value."""
         obj = LocalAssetObject(uri="/data/year=2024/month=03/file.parquet")
-        
+
         assert obj.partitions == {"year": "2024", "month": "03"}
 
     def test_partitions_multiple_levels(self):
@@ -95,7 +93,7 @@ class TestLocalAssetObjectPartitionInference:
         obj = LocalAssetObject(
             uri="/warehouse/year=2024/month=03/day=15/region=us-west/file.parquet"
         )
-        
+
         assert obj.partitions == {
             "year": "2024",
             "month": "03",
@@ -106,7 +104,7 @@ class TestLocalAssetObjectPartitionInference:
     def test_partitions_with_complex_values(self):
         """Test partition extraction with special characters in values."""
         obj = LocalAssetObject(uri="/data/region=us-west-1/category=tech_hardware/file.csv")
-        
+
         assert obj.partitions == {
             "region": "us-west-1",
             "category": "tech_hardware",
@@ -120,7 +118,7 @@ class TestLocalAssetObjectPartitionInference:
     def test_partitions_ignores_non_partition_dirs(self):
         """Test that directories without = are not treated as partitions."""
         obj = LocalAssetObject(uri="/data/folder/year=2024/subfolder/file.parquet")
-        
+
         assert obj.partitions == {"year": "2024"}
         assert "folder" not in obj.partitions
         assert "subfolder" not in obj.partitions
@@ -133,7 +131,7 @@ class TestLocalAssetObjectSerialization:
         """Test creating object from minimal dict."""
         data = {"uri": "/data/file.parquet"}
         obj = LocalAssetObject.from_dict(data)
-        
+
         assert obj.uri == "/data/file.parquet"
         assert obj.filesystem == AssetFilesystem.LOCAL
 
@@ -148,7 +146,7 @@ class TestLocalAssetObjectSerialization:
             "metadata": {"uid": 1000},
         }
         obj = LocalAssetObject.from_dict(data)
-        
+
         assert obj.uri == "/data/year=2024/file.parquet"
         assert obj.size == 2048
         assert obj.type == "file"
@@ -163,7 +161,7 @@ class TestLocalAssetObjectSerialization:
             type="file",
         )
         exported = obj.export()
-        
+
         assert isinstance(exported, dict)
         assert exported["uri"] == "/data/test.csv"
         assert exported["size"] == 512
@@ -173,7 +171,7 @@ class TestLocalAssetObjectSerialization:
         """Test that describe returns a JSON string."""
         obj = LocalAssetObject(uri="/data/file.parquet")
         description = obj.describe()
-        
+
         assert isinstance(description, str)
         assert "/data/file.parquet" in description
 
@@ -186,7 +184,7 @@ class TestLocalAssetObjectSerialization:
         )
         exported = original.export()
         restored = LocalAssetObject.from_dict(exported)
-        
+
         assert restored.uri == original.uri
         assert restored.size == original.size
         assert restored.type == original.type

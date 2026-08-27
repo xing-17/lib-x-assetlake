@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fsspec.implementations.local import LocalFileSystem
@@ -12,8 +12,8 @@ from assetlake.control.asset.local.object import LocalAssetObject
 from assetlake.domain.asset.asset import AbstractAssetDomain
 from assetlake.domain.asset.filesystem import AssetFilesystem
 from assetlake.domain.asset.objectkind import AssetObjectkind
-from assetlake.internal.idomainobject import IDomainObject
 from assetlake.internal.iclock import IClock
+from assetlake.internal.idomainobject import IDomainObject
 
 
 class LocalAssetDomain(AbstractAssetDomain):
@@ -48,7 +48,7 @@ class LocalAsset(
             metadata=metadata,
             tags=tags,
         )
-    
+
     def get_mount(
         self,
         access: LocalAccess | None = None,
@@ -58,7 +58,7 @@ class LocalAsset(
             return LocalFileSystem(auto_mkdir=True, **_opts)
         else:
             return LocalFileSystem(auto_mkdir=True)
-        
+
     def inspect(
         self,
         since: datetime | None = None,
@@ -79,7 +79,7 @@ class LocalAsset(
         for _item in _mount.glob(self.domain.glob):
             _item_info = _mount.info(_item)
             _modified_ts: float | None = _item_info.get("mtime", None)
-            _modified_at: datetime | None = IClock.from_timestamp(_modified_ts)      
+            _modified_at: datetime | None = IClock.from_timestamp(_modified_ts)
             if since and _modified_at and _modified_at < since:
                 continue
             if until and _modified_at and _modified_at > until:
@@ -106,8 +106,10 @@ class LocalAsset(
                 type=_type,
             )
             _results.append(_obj)
-        
-        _results.sort(key=lambda x: x.modified_at or datetime.min, reverse=True)
-        if limit and len(_results) > limit:
-            _results = _results[:limit]
+            # Exit early if we have reached the limit
+            if limit and len(_results) >= limit:
+                break
+
+        _min_datetime = datetime.min.replace(tzinfo=timezone.utc)
+        _results.sort(key=lambda x: x.modified_at or _min_datetime, reverse=True)
         return _results

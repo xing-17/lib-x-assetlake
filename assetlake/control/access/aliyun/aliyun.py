@@ -27,8 +27,6 @@ class AliyunAccessDomain(AbstractAccessDomain):
     platform: AccessPlatform = AccessPlatform.ALIYUN
     access_key_id: str | None = None
     access_key_secret: str | None = None
-    region: str | None = None
-    internal: bool = False
 
 
 @AccessFactory.add(AccessPlatform.ALIYUN)
@@ -44,7 +42,8 @@ class AliyunAccess(
         platform: AccessPlatform fixed to ALIYUN.
         access_key_id: 阿里云访问密钥ID。
         access_key_secret: 阿里云访问密钥Secret。
-
+        region: 阿里云区域。
+        internal: 是否使用内网访问阿里云服务。
         tags: 与访问配置文件关联的标签字典。
 
     """
@@ -56,8 +55,6 @@ class AliyunAccess(
         name: str | None = None,
         access_key_id: str | None = None,
         access_key_secret: str | None = None,
-        region: str | None = None,
-        internal: bool = False,
         tags: dict[str, str] = None,
     ):
         super().__init__(
@@ -65,31 +62,15 @@ class AliyunAccess(
             platform=AccessPlatform.ALIYUN,
             access_key_id=access_key_id,
             access_key_secret=access_key_secret,
-            region=region,
-            internal=internal,
             tags=tags,
         )
 
-    def _resolve_endpoint(
-        self,
-        service: str,
-    ) -> str | None:
-        if not self.region:
-            return None
-        else:
-            if self.internal:
-                return f"{service}-{self.region}-internal.aliyuncs.com"
-            else:
-                return f"{service}-{self.region}.aliyuncs.com"
-
     def get_fsspec_opts(self) -> dict[str, str | None]:
-        _opts = {
-            "key": self.access_key_id,
-            "secret": self.access_key_secret,
-            "endpoint": self._resolve_endpoint("oss"),
+        _payload = {
+            "access_key_id": self.access_key_id,
+            "access_key_secret": self.access_key_secret,
         }
-        _filted = {k: v for k, v in _opts.items() if v is not None}
-        return _filted
+        return {k: v for k, v in _payload.items() if v is not None}
 
     def export(self) -> dict[str, str | None]:
         _key_id = self.access_key_id

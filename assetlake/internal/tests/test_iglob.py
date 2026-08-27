@@ -275,3 +275,109 @@ class TestLocalCloudEquivalence:
 
     def test_bucket_present_for_cloud(self) -> None:
         assert IGlob.parse_bucket("s3://my-bucket/data/**/*.parquet") == "my-bucket"
+
+
+# ---------------------------------------------------------------------------
+# IGlob.match  — core behaviour
+# ---------------------------------------------------------------------------
+
+
+class TestIGlobMatch:
+    # --- basic single-level wildcard (*) ---
+
+    def test_single_star_matches_filename(self):
+        glob = "oss://bucket/data/*.parquet"
+        uri = "oss://bucket/data/file.parquet"
+        assert IGlob.match(glob, uri) is True
+
+    def test_single_star_does_not_cross_slash(self):
+        glob = "oss://bucket/data/*.parquet"
+        uri = "oss://bucket/data/sub/file.parquet"
+        assert IGlob.match(glob, uri) is False
+
+    def test_single_star_in_directory(self):
+        glob = "oss://bucket/path/date=*/*.parquet"
+        uri = "oss://bucket/path/date=20240101/file.parquet"
+        assert IGlob.match(glob, uri) is True
+
+    def test_single_star_dir_wrong_extension(self):
+        glob = "oss://bucket/path/date=*/*.parquet"
+        uri = "oss://bucket/path/date=20240101/file.csv"
+        assert IGlob.match(glob, uri) is False
+
+    def test_single_star_dir_extra_depth(self):
+        glob = "oss://bucket/path/date=*/*.parquet"
+        uri = "oss://bucket/path/date=20240101/sub/file.parquet"
+        assert IGlob.match(glob, uri) is False
+
+    # --- double-star (**) ---
+
+    def test_double_star_crosses_slashes(self):
+        glob = "oss://bucket/root/**/*.parquet"
+        uri = "oss://bucket/root/a/b/c/file.parquet"
+        assert IGlob.match(glob, uri) is True
+
+    def test_double_star_single_level(self):
+        # ** compiles to `.*` followed by a literal `/`, so at least one
+        # directory level is required between the prefix and the trailing *.
+        glob = "oss://bucket/root/**/*.parquet"
+        assert IGlob.match(glob, "oss://bucket/root/a/file.parquet") is True
+        assert IGlob.match(glob, "oss://bucket/root/a/b/c/file.parquet") is True
+        # zero-depth (no sub-directory): not matched by this implementation
+        assert IGlob.match(glob, "oss://bucket/root/file.parquet") is False
+
+    # --- exact path (no wildcards) ---
+
+    def test_exact_match(self):
+        glob = "oss://bucket/path/file.parquet"
+        uri = "oss://bucket/path/file.parquet"
+        assert IGlob.match(glob, uri) is True
+
+    def test_exact_mismatch(self):
+        glob = "oss://bucket/path/file.parquet"
+        uri = "oss://bucket/path/other.parquet"
+        assert IGlob.match(glob, uri) is False
+
+    # --- different bucket should not match ---
+
+    def test_different_bucket(self):
+        glob = "oss://bucket-a/path/*.parquet"
+        uri = "oss://bucket-b/path/file.parquet"
+        assert IGlob.match(glob, uri) is False
+
+    def test_same_bucket_matches(self):
+        glob = "oss://bucket-a/path/*.parquet"
+        uri = "oss://bucket-a/path/file.parquet"
+        assert IGlob.match(glob, uri) is True
+
+    # --- real-world OSS pattern (the original failing case) ---
+
+    def test_real_world_tushare_capflow(self):
+        glob = (
+            "oss://ynt-trading-prod-datalake"
+            "/fortress/bridges/source/tushare_stock_capflow"
+            "/date=*/*.parquet"
+        )
+        uri_match = (
+            "oss://ynt-trading-prod-datalake"
+            "/fortress/bridges/source/tushare_stock_capflow"
+            "/date=20240101/000001.parquet"
+        )
+        uri_no_match = (
+            "oss://ynt-trading-prod-datalake"
+            "/fortress/bridges/source/tushare_stock_capflow"
+            "/date=20240101/sub/000001.parquet"
+        )
+        assert IGlob.match(glob, uri_match) is True
+        assert IGlob.match(glob, uri_no_match) is False
+
+    # --- argument-order regression: glob must be first ---
+
+    def test_argument_order_regression(self):
+        """Swapped args (old bug) would always return False here."""
+        glob = "oss://bucket/data/date=*/*.csv"
+        uri = "oss://bucket/data/date=20230601/report.csv"
+        # correct order
+        assert IGlob.match(glob, uri) is True
+        # swapped order should NOT match (uri has no wildcards, glob has special chars)
+        assert IGlob.match(uri, glob) is False

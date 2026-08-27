@@ -19,6 +19,7 @@ class AbstractAssetDomain(
     Abstract base class for logical data asset objects across platforms.
 
     Attributes:
+        glob (str): Glob pattern for the asset (e.g., 's3://bucket/path/*.parquet').
         name (str): Name of the asset.
         objectkind (AssetObjectkind): Kind of the asset, default: OBJECT.
         filesystem (AssetFilesystem): File system of the asset, default: LOCAL.

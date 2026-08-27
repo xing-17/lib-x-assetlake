@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
 from fsspec.implementations.local import LocalFileSystem
 
 from assetlake.control.access.local.local import LocalAccess
@@ -36,7 +35,7 @@ class TestLocalAssetDomain:
             metadata={"source": "test"},
             tags={"env": "dev"},
         )
-        
+
         assert domain.glob == "/data/**/*.csv"
         assert domain.name == "test_asset"
         assert domain.objectkind == AssetObjectkind.CSV
@@ -53,7 +52,7 @@ class TestLocalAssetCreation:
     def test_create_minimal_asset(self):
         """Test creating asset with minimal required fields."""
         asset = LocalAsset(glob="/data/**/*.parquet")
-        
+
         assert asset.glob == "/data/**/*.parquet"
         assert asset.filesystem == AssetFilesystem.LOCAL
         assert asset.name is None
@@ -71,7 +70,7 @@ class TestLocalAssetCreation:
             metadata={"format": "parquet", "compression": "snappy"},
             tags={"category": "sales", "env": "prod"},
         )
-        
+
         assert asset.glob == "/warehouse/year=*/month=*/*.parquet"
         assert asset.name == "sales_data"
         assert asset.objectkind == AssetObjectkind.PARQUET
@@ -99,7 +98,7 @@ class TestLocalAssetGetMount:
         """Test get_mount returns LocalFileSystem without access."""
         asset = LocalAsset(glob="/data/**/*.parquet")
         mount = asset.get_mount()
-        
+
         assert isinstance(mount, LocalFileSystem)
         assert mount.auto_mkdir is True
 
@@ -108,7 +107,7 @@ class TestLocalAssetGetMount:
         asset = LocalAsset(glob="/data/**/*.parquet")
         access = LocalAccess()
         mount = asset.get_mount(access)
-        
+
         assert isinstance(mount, LocalFileSystem)
         assert mount.auto_mkdir is True
 
@@ -120,14 +119,14 @@ class TestLocalAssetInspectBasics:
         """Test inspect on non-existent directory returns empty list."""
         non_existent = tmp_path / "does_not_exist"
         asset = LocalAsset(glob=f"{non_existent}/**/*.parquet")
-        
+
         results = asset.inspect()
         assert results == []
 
     def test_inspect_empty_directory(self, tmp_path: Path):
         """Test inspect on empty directory returns empty list."""
         asset = LocalAsset(glob=f"{tmp_path}/**/*.parquet")
-        
+
         results = asset.inspect()
         assert results == []
 
@@ -135,7 +134,7 @@ class TestLocalAssetInspectBasics:
         """Test that inspect returns list of LocalAssetObject."""
         (tmp_path / "file.parquet").write_text("test data")
         asset = LocalAsset(glob=f"{tmp_path}/**/*.parquet")
-        
+
         results = asset.inspect()
         assert isinstance(results, list)
         assert len(results) == 1
@@ -150,10 +149,10 @@ class TestLocalAssetInspectGlobMatching:
         (tmp_path / "file1.parquet").write_text("data1")
         (tmp_path / "file2.parquet").write_text("data2")
         (tmp_path / "file3.csv").write_text("data3")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 2
         names = {Path(obj.uri).name for obj in results}
         assert names == {"file1.parquet", "file2.parquet"}
@@ -164,10 +163,10 @@ class TestLocalAssetInspectGlobMatching:
         (tmp_path / "data" / "file1.csv").write_text("data1")
         (tmp_path / "data" / "nested").mkdir()
         (tmp_path / "data" / "nested" / "file2.csv").write_text("data2")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/**/*.csv")
         results = asset.inspect()
-        
+
         assert len(results) == 2
 
     def test_inspect_specific_file_extension(self, tmp_path: Path):
@@ -175,10 +174,10 @@ class TestLocalAssetInspectGlobMatching:
         (tmp_path / "data.parquet").write_text("parquet")
         (tmp_path / "data.csv").write_text("csv")
         (tmp_path / "data.json").write_text("json")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.csv")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         assert results[0].uri.endswith(".csv")
 
@@ -189,10 +188,10 @@ class TestLocalAssetInspectGlobMatching:
                 dir_path = tmp_path / f"year={year}" / f"month={month}"
                 dir_path.mkdir(parents=True)
                 (dir_path / "data.parquet").write_text(f"data-{year}-{month}")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/year=*/month=*/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 4  # 2 years × 2 months
 
 
@@ -203,10 +202,10 @@ class TestLocalAssetInspectMetadata:
         """Test that inspect extracts correct URI."""
         file_path = tmp_path / "test.parquet"
         file_path.write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         assert results[0].uri == str(file_path)
 
@@ -214,10 +213,10 @@ class TestLocalAssetInspectMetadata:
         """Test that inspect extracts file size."""
         file_path = tmp_path / "test.parquet"
         file_path.write_bytes(b"x" * 1024)
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         assert results[0].size == 1024
 
@@ -225,10 +224,10 @@ class TestLocalAssetInspectMetadata:
         """Test that inspect extracts modification time."""
         file_path = tmp_path / "test.csv"
         file_path.write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.csv")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         assert results[0].modified_at is not None
         assert isinstance(results[0].modified_at, datetime)
@@ -237,10 +236,10 @@ class TestLocalAssetInspectMetadata:
         """Test that inspect extracts file type."""
         file_path = tmp_path / "test.parquet"
         file_path.write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         assert results[0].type == "file"
 
@@ -248,10 +247,10 @@ class TestLocalAssetInspectMetadata:
         """Test that inspect extracts additional metadata."""
         file_path = tmp_path / "test.parquet"
         file_path.write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         metadata = results[0].metadata
         assert isinstance(metadata, dict)
@@ -266,16 +265,16 @@ class TestLocalAssetInspectTimeFiltering:
         """Test inspect filters files modified after since time."""
         file1 = tmp_path / "old.parquet"
         file2 = tmp_path / "new.parquet"
-        
+
         file1.write_text("old data")
         time.sleep(0.1)
         since_time = datetime.now(timezone.utc)
         time.sleep(0.1)
         file2.write_text("new data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(since=since_time)
-        
+
         # Should only include file2
         assert len(results) == 1
         assert results[0].uri == str(file2)
@@ -284,16 +283,16 @@ class TestLocalAssetInspectTimeFiltering:
         """Test inspect filters files modified before until time."""
         file1 = tmp_path / "old.parquet"
         file2 = tmp_path / "new.parquet"
-        
+
         file1.write_text("old data")
         time.sleep(0.1)
         until_time = datetime.now(timezone.utc)
         time.sleep(0.1)
         file2.write_text("new data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(until=until_time)
-        
+
         # Should only include file1
         assert len(results) == 1
         assert results[0].uri == str(file1)
@@ -303,7 +302,7 @@ class TestLocalAssetInspectTimeFiltering:
         file1 = tmp_path / "before.parquet"
         file2 = tmp_path / "during.parquet"
         file3 = tmp_path / "after.parquet"
-        
+
         file1.write_text("before")
         time.sleep(0.1)
         since_time = datetime.now(timezone.utc)
@@ -313,10 +312,10 @@ class TestLocalAssetInspectTimeFiltering:
         until_time = datetime.now(timezone.utc)
         time.sleep(0.1)
         file3.write_text("after")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(since=since_time, until=until_time)
-        
+
         # Should only include file2
         assert len(results) == 1
         assert results[0].uri == str(file2)
@@ -325,10 +324,10 @@ class TestLocalAssetInspectTimeFiltering:
         """Test inspect with None time filters returns all files."""
         (tmp_path / "file1.parquet").write_text("data1")
         (tmp_path / "file2.parquet").write_text("data2")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(since=None, until=None)
-        
+
         assert len(results) == 2
 
 
@@ -339,10 +338,10 @@ class TestLocalAssetInspectLimit:
         """Test inspect respects limit parameter."""
         for i in range(10):
             (tmp_path / f"file{i}.parquet").write_text(f"data{i}")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(limit=3)
-        
+
         assert len(results) == 3
 
     def test_inspect_limit_returns_most_recent(self, tmp_path: Path):
@@ -353,10 +352,10 @@ class TestLocalAssetInspectLimit:
             file.write_text(f"data{i}")
             if i < 4:
                 time.sleep(0.05)
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(limit=2)
-        
+
         assert len(results) == 2
         # Results should be sorted by modified_at descending
         assert results[0].modified_at >= results[1].modified_at
@@ -365,20 +364,20 @@ class TestLocalAssetInspectLimit:
         """Test inspect with limit=None returns all files."""
         for i in range(5):
             (tmp_path / f"file{i}.csv").write_text(f"data{i}")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.csv")
         results = asset.inspect(limit=None)
-        
+
         assert len(results) == 5
 
     def test_inspect_limit_greater_than_available(self, tmp_path: Path):
         """Test inspect when limit exceeds available files."""
         (tmp_path / "file1.parquet").write_text("data1")
         (tmp_path / "file2.parquet").write_text("data2")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(limit=10)
-        
+
         assert len(results) == 2
 
 
@@ -393,10 +392,10 @@ class TestLocalAssetInspectSorting:
             file.write_text(f"data{i}")
             files.append(file)
             time.sleep(0.05)
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 3
         # Most recent file should be first
         for i in range(len(results) - 1):
@@ -411,10 +410,10 @@ class TestLocalAssetInspectPartitions:
         dir_path = tmp_path / "year=2024" / "month=03"
         dir_path.mkdir(parents=True)
         (dir_path / "data.parquet").write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/year=*/month=*/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 1
         assert results[0].partitions == {"year": "2024", "month": "03"}
 
@@ -424,10 +423,10 @@ class TestLocalAssetInspectPartitions:
             dir_path = tmp_path / f"year={year}"
             dir_path.mkdir(parents=True)
             (dir_path / "data.csv").write_text(f"data-{year}")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/year=*/*.csv")
         results = asset.inspect()
-        
+
         assert len(results) == 2
         partitions = [obj.partitions for obj in results]
         assert {"year": "2023"} in partitions
@@ -440,20 +439,20 @@ class TestLocalAssetInspectWithAccess:
     def test_inspect_with_none_access(self, tmp_path: Path):
         """Test inspect with access=None works correctly."""
         (tmp_path / "file.parquet").write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect(access=None)
-        
+
         assert len(results) == 1
 
     def test_inspect_with_local_access(self, tmp_path: Path):
         """Test inspect with LocalAccess instance."""
         (tmp_path / "file.csv").write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.csv")
         access = LocalAccess()
         results = asset.inspect(access=access)
-        
+
         assert len(results) == 1
 
 
@@ -468,7 +467,7 @@ class TestLocalAssetSerialization:
             "filesystem": AssetFilesystem.LOCAL,
             "tags": {"env": "test"},
         }
-        
+
         asset = LocalAsset.from_dict(data)
         assert isinstance(asset, LocalAsset)
         assert asset.glob == "/data/**/*.parquet"
@@ -482,7 +481,7 @@ class TestLocalAssetSerialization:
             name="test_asset",
             tags={"category": "sales"},
         )
-        
+
         asset = LocalAsset.from_domain(domain)
         assert isinstance(asset, LocalAsset)
         assert asset.glob == "/data/**/*.csv"
@@ -496,7 +495,7 @@ class TestLocalAssetSerialization:
             name="warehouse_data",
             tags={"env": "prod"},
         )
-        
+
         exported = asset.export()
         assert isinstance(exported, dict)
         assert exported["glob"] == "/warehouse/**/*.parquet"
@@ -509,7 +508,7 @@ class TestLocalAssetSerialization:
             glob="/data/**/*.csv",
             name="test_asset",
         )
-        
+
         description = asset.describe()
         assert isinstance(description, str)
         assert "/data/**/*.csv" in description
@@ -526,10 +525,10 @@ class TestLocalAssetSerialization:
             metadata={"key": "value"},
             tags={"env": "dev"},
         )
-        
+
         exported = original.export()
         restored = LocalAsset.from_dict(exported)
-        
+
         assert restored.glob == original.glob
         assert restored.name == original.name
         assert restored.partitions == original.partitions
@@ -545,23 +544,23 @@ class TestLocalAssetEdgeCases:
     def test_glob_with_no_matches(self, tmp_path: Path):
         """Test glob that doesn't match any files."""
         (tmp_path / "file.csv").write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         assert results == []
 
     def test_inspect_with_symlinks(self, tmp_path: Path):
         """Test inspect handles symlinks."""
         real_file = tmp_path / "real.parquet"
         real_file.write_text("data")
-        
+
         link = tmp_path / "link.parquet"
         link.symlink_to(real_file)
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results = asset.inspect()
-        
+
         # Should find both real file and symlink
         assert len(results) >= 1
 
@@ -570,20 +569,20 @@ class TestLocalAssetEdgeCases:
         special_dir = tmp_path / "data (test)"
         special_dir.mkdir()
         (special_dir / "file-name_123.parquet").write_text("data")
-        
+
         asset = LocalAsset(glob=f"{special_dir}/*.parquet")
         results = asset.inspect()
-        
+
         assert len(results) == 1
 
     def test_multiple_inspects_are_independent(self, tmp_path: Path):
         """Test that multiple inspect calls are independent."""
         (tmp_path / "file.parquet").write_text("data")
-        
+
         asset = LocalAsset(glob=f"{tmp_path}/*.parquet")
         results1 = asset.inspect()
         results2 = asset.inspect()
-        
+
         assert results1 == results2
         # Ensure they're different list instances
         assert results1 is not results2
