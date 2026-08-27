@@ -1,0 +1,68 @@
+[project]
+name = "lib-x-assetlake"
+version = "0.0.1"
+description = "Lightweight pylib for managing data pipeline ecosystems."
+readme = "README.md"
+authors = [
+    { name = "Xing Xing", email = "x.xing.work@gmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "fsspec",
+    "duckdb>=1.5",
+]
+
+[project.optional-dependencies]
+aws = [
+    "boto3"
+]
+aliyun = [
+    "alibabacloud-oss-v2"
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock",
+    "ruff",
+    "setuptools",
+    "wheel",
+    "twine",
+    "build",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["lib-x-assetlake"]
+
+[build-system]
+requires = [
+  "setuptools",
+  "wheel",
+  "twine",
+  "build"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lib-x-assetlake*"]
+exclude = ["tests*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
