@@ -34,14 +34,16 @@ class IClock:
             return _UTC_TIMEZONE
 
     @staticmethod
-    def from_datetime(value: datetime) -> datetime:
+    def from_datetime(value: datetime | None = None) -> datetime | None:
+        if value is None:
+            return None
         if value.tzinfo:
             return value.astimezone(_UTC_TIMEZONE)
         else:
             return value.replace(tzinfo=_UTC_TIMEZONE)
 
     @staticmethod
-    def from_iso(value: str) -> datetime | None:
+    def from_iso(value: str | None = None) -> datetime | None:
         if not value:
             return None
         _dt = datetime.fromisoformat(value)
@@ -51,7 +53,9 @@ class IClock:
             return _dt.replace(tzinfo=_UTC_TIMEZONE)
 
     @staticmethod
-    def from_timestamp(value: float) -> datetime:
+    def from_timestamp(value: float | None = None) -> datetime | None:
+        if value is None:
+            return None
         return datetime.fromtimestamp(value, tz=_UTC_TIMEZONE)
 
     @staticmethod

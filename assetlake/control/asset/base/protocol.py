@@ -51,15 +51,6 @@ class IAssetLike(Protocol):
         access: IAccessLike | None = None,
     ) -> None: ...
 
-    def quality(
-        self,
-        objects: list[IAssetObjectLike] | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
-        limit: int | None = None,
-        access: IAccessLike | None = None,
-    ) -> None: ...
-
     def export(self) -> dict[str, Any]: ...
 
     def describe(self) -> dict[str, Any]: ...

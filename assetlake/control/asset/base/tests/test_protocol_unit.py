@@ -151,6 +151,5 @@ class TestIAssetLike:
 
         assert hasattr(LocalAsset, "from_dict")
         assert hasattr(LocalAsset, "inspect")
-        assert hasattr(LocalAsset, "quality")
         assert hasattr(LocalAsset, "export")
         assert hasattr(LocalAsset, "describe")
