@@ -1,6 +1,4 @@
 from __future__ import annotations
-from logging import config
-from typing import Any
 
 from duckdb import DuckDBPyConnection
 
@@ -93,7 +91,29 @@ class AWSAccess(
         }
         _filtered = {k: v for k, v in _opts.items() if v is not None}
         return _filtered
-    
+
+    def to_duckdb(
+        self,
+        conn: DuckDBPyConnection,
+    ) -> DuckDBPyConnection:
+        _key_id = self.access_key_id
+        _secret = self.access_key_secret
+        if not _key_id or not _secret:
+            return conn
+        else:
+            _name = self.name or "aws_access"
+            _config = {
+                "TYPE": "s3",
+                "PROVIDER": "config",
+                "KEY_ID": _key_id,
+                "SECRET": _secret,
+            }
+            _sql = f"CREATE OR REPLACE SECRET {_name} ("
+            _sql += ", ".join([f"{k} '{v}'" for k, v in _config.items()])
+            _sql += ");"
+            conn.execute(_sql)
+            return conn
+
     def export(self) -> dict[str, str | None]:
         _key_id = self.access_key_id
         _expr_key_id = None if not _key_id else _key_id[0:4] + "******"

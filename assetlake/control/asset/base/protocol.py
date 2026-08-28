@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
+from duckdb import DuckDBPyConnection
+
 from assetlake.control.access.base.protocol import IAccessLike
 from assetlake.domain.asset.filesystem import AssetFilesystem
 from assetlake.domain.asset.objectkind import AssetObjectkind
@@ -50,6 +52,13 @@ class IAssetLike(Protocol):
         limit: int | None = None,
         access: IAccessLike | None = None,
     ) -> None: ...
+
+    def quality(
+        self,
+        conn: DuckDBPyConnection | None = None,
+        access: IAccessLike | None = None,
+        objects: list[IAssetObjectLike] | None = None,
+    ) -> dict[str, Any]: ...
 
     def export(self) -> dict[str, Any]: ...
 

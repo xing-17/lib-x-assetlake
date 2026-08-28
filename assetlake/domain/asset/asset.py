@@ -51,7 +51,7 @@ class AbstractAssetDomain(
         description="File system of the asset",
     )
     objectkind: AssetObjectkind = Field(
-        AssetObjectkind.OBJECT,
+        default=AssetObjectkind.OBJECT,
         description="Kind of the asset",
     )
     partitions: list[str] = Field(
@@ -81,9 +81,9 @@ class AbstractAssetDomain(
         if not isinstance(data, dict):
             return data
         _glob = data.get("glob", "")
-        if "objectkind" not in data:
+        if "objectkind" not in data or data["objectkind"] is None:
             data["objectkind"] = _infer_objectkind(_glob)
-        if "partitions" not in data:
+        if "partitions" not in data or data["partitions"] is None:
             data["partitions"] = _infer_partitions(_glob)
         return data
 

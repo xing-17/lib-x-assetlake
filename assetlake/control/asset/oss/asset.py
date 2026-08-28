@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+import duckdb
+from duckdb import DuckDBPyConnection
 from pydantic import Field, computed_field
 
 from assetlake.control.access.aliyun.aliyun import AliyunAccess
@@ -58,6 +60,7 @@ class OSSAsset(
     IAssetLike,
 ):
     _domain_class: type[OSSAssetDomain] = OSSAssetDomain
+    _extra_duckdb_modules: list[str] = ["httpfs", "s3"]
 
     def __init__(
         self,
@@ -128,6 +131,22 @@ class OSSAsset(
         except Exception as e:
             raise RuntimeError(f"Failed to get OSS object iterator: {e}") from e
 
+    def _get_duckdb_conn(
+        self,
+        access: AliyunAccess | None = None,
+    ) -> DuckDBPyConnection:
+        conn = duckdb.connect(database=":memory:")
+        for module in self._extra_duckdb_modules:
+            conn.execute(f"INSTALL {module};")
+            conn.execute(f"LOAD {module};")
+        access = access or AliyunAccess()
+        conn = access.to_duckdb(
+            conn=conn,
+            region=self.domain.region,
+            endpoint=self.domain.endpoint,
+        )
+        return conn
+
     def inspect(
         self,
         since: datetime | None = None,
@@ -176,4 +195,39 @@ class OSSAsset(
 
         _min_datetime = datetime.min.replace(tzinfo=timezone.utc)
         _results.sort(key=lambda x: x.modified_at or _min_datetime, reverse=True)
+        return _results
+
+    def quality(
+        self,
+        conn: DuckDBPyConnection | None = None,
+        access: AliyunAccess | None = None,
+        objects: list[OSSAssetObject] | None = None,
+    ) -> list[dict[str, Any]]:
+        if self.domain.objectkind != AssetObjectkind.PARQUET:
+            raise ValueError("Quality check is only supported for PARQUET")
+
+        # Ensure duckdb connection
+        conn = conn or self._get_duckdb_conn(access=access)
+
+        # Build query
+        if not objects:
+            _glob = self.domain.glob
+            if not _glob.startswith("oss://"):
+                _glob = _glob.replace("oss://", "s3://")
+            _param = (_glob,)
+        else:
+            _uris = []
+            for obj in objects:
+                _uri = obj.uri
+                if _uri.startswith("oss://"):
+                    _uri = _uri.replace("oss://", "s3://")
+                _uris.append(_uri)
+            _param = (_uris,)
+
+        # Run quality check
+        _stmt = "SELECT * FROM parquet_metadata(?);"
+        _cursor = conn.execute(_stmt, _param)
+        _columns = [desc[0] for desc in _cursor.description]
+        _rows = _cursor.fetchall()
+        _results = [dict(zip(_columns, row)) for row in _rows]
         return _results

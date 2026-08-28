@@ -39,8 +39,8 @@ class AbstractAssetObjectDomain(
         ...,
         description="Physical URI of the asset component (e.g., 's3://bucket/path/file.parquet').",
     )
-    objectkind: str = Field(
-        default="OBJECT",
+    objectkind: AssetObjectkind = Field(
+        default=AssetObjectkind.OBJECT,
         description="Kind of the asset component, default: OBJECT.",
     )
     size: int | None = Field(
@@ -80,11 +80,11 @@ class AbstractAssetObjectDomain(
         if not isinstance(data, dict):
             return data
         _uri = data.get("uri", "")
-        if "partitions" not in data:
+        if "partitions" not in data or data["partitions"] is None:
             data["partitions"] = _infer_partitions(_uri)
-        if "suffix" not in data:
+        if "suffix" not in data or data["suffix"] is None:
             data["suffix"] = _infer_suffix(_uri)
-        if "objectkind" not in data:
+        if "objectkind" not in data or data["objectkind"] is None:
             data["objectkind"] = _infer_objectkind(_uri)
         return data
 

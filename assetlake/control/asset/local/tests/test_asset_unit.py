@@ -586,3 +586,180 @@ class TestLocalAssetEdgeCases:
         assert results1 == results2
         # Ensure they're different list instances
         assert results1 is not results2
+
+
+class TestLocalAssetQuality:
+    """Test LocalAsset.quality method."""
+
+    def test_quality_raises_error_for_non_parquet(self, tmp_path: Path):
+        """Test quality raises ValueError for non-PARQUET objectkind."""
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.csv",
+            objectkind=AssetObjectkind.CSV,
+        )
+
+        try:
+            asset.quality()
+            assert False, "Expected ValueError to be raised"
+        except ValueError as e:
+            assert "Quality check is only supported for PARQUET" in str(e)
+
+    def test_quality_with_glob_pattern(self, tmp_path: Path):
+        """Test quality using glob pattern to query parquet metadata."""
+        import duckdb
+
+        # Create test parquet file using duckdb
+        test_file = tmp_path / "test_data.parquet"
+        conn = duckdb.connect(":memory:")
+        conn.execute(
+            f"COPY (SELECT 1 as id, 'Alice' as name, 25 as age) TO '{test_file}' (FORMAT PARQUET)"
+        )
+        conn.close()
+
+        # Create asset and check quality
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+        results = asset.quality()
+
+        # Verify results structure
+        assert isinstance(results, list)
+        assert len(results) > 0
+        assert isinstance(results[0], dict)
+        # Check for common parquet metadata fields
+        assert "file_name" in results[0]
+
+    def test_quality_with_objects_list(self, tmp_path: Path):
+        """Test quality using explicit list of objects."""
+        import duckdb
+
+        # Create test parquet files
+        test_file1 = tmp_path / "data1.parquet"
+        test_file2 = tmp_path / "data2.parquet"
+        conn = duckdb.connect(":memory:")
+        conn.execute(f"COPY (SELECT 1 as id, 'Bob' as name) TO '{test_file1}' (FORMAT PARQUET)")
+        conn.execute(f"COPY (SELECT 2 as id, 'Charlie' as name) TO '{test_file2}' (FORMAT PARQUET)")
+        conn.close()
+
+        # Create asset
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # Create object list
+        objects = [
+            LocalAssetObject(uri=str(test_file1)),
+            LocalAssetObject(uri=str(test_file2)),
+        ]
+
+        # Check quality with objects
+        results = asset.quality(objects=objects)
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+
+    def test_quality_with_custom_connection(self, tmp_path: Path):
+        """Test quality using custom duckdb connection."""
+        import duckdb
+
+        # Create test parquet file
+        test_file = tmp_path / "custom.parquet"
+        conn = duckdb.connect(":memory:")
+        conn.execute(
+            f"COPY (SELECT 1 as id, 'David' as name, 30 as age) TO '{test_file}' (FORMAT PARQUET)"
+        )
+
+        # Create asset and check quality with custom connection
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+        results = asset.quality(conn=conn)
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+        conn.close()
+
+    def test_quality_with_access_parameter(self, tmp_path: Path):
+        """Test quality with LocalAccess parameter."""
+        import duckdb
+
+        # Create test parquet file
+        test_file = tmp_path / "access_test.parquet"
+        conn = duckdb.connect(":memory:")
+        conn.execute(f"COPY (SELECT 1 as id, 'Eve' as name) TO '{test_file}' (FORMAT PARQUET)")
+        conn.close()
+
+        # Create asset and check quality with access
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+        access = LocalAccess()
+        results = asset.quality(access=access)
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+
+    def test_quality_returns_metadata_structure(self, tmp_path: Path):
+        """Test that quality returns proper parquet metadata structure."""
+        import duckdb
+
+        # Create test parquet file with known data
+        test_file = tmp_path / "metadata_test.parquet"
+        conn = duckdb.connect(":memory:")
+        conn.execute(
+            f"COPY (SELECT i as id, 'user_' || i as name FROM range(100) t(i)) "
+            f"TO '{test_file}' (FORMAT PARQUET)"
+        )
+        conn.close()
+
+        # Check quality
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+        results = asset.quality()
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+        # Verify metadata contains file_name
+        result = results[0]
+        assert "file_name" in result
+
+    def test_quality_with_no_matching_files(self, tmp_path: Path):
+        """Test quality with glob that matches no files."""
+        import duckdb
+
+        asset = LocalAsset(
+            glob=f"{tmp_path}/nonexistent/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # DuckDB raises IOException when no files match the pattern
+        try:
+            _ = asset.quality()
+            assert False, "Expected IOException to be raised"
+        except duckdb.IOException as e:
+            assert "No files found" in str(e)
+
+    def test_quality_with_empty_objects_list(self, tmp_path: Path):
+        """Test quality behavior with empty objects list."""
+        import duckdb
+
+        # Create a test file for glob fallback
+        test_file = tmp_path / "fallback.parquet"
+        conn = duckdb.connect(":memory:")
+        conn.execute(f"COPY (SELECT 1 as id) TO '{test_file}' (FORMAT PARQUET)")
+        conn.close()
+
+        asset = LocalAsset(
+            glob=f"{tmp_path}/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # Pass None explicitly to use glob pattern
+        results = asset.quality(objects=None)
+        assert isinstance(results, list)

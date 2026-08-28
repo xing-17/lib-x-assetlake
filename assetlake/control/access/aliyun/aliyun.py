@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from duckdb import DuckDBPyConnection
+
 from assetlake.control.access.base.factory import AccessFactory
 from assetlake.control.access.base.protocol import IAccessLike
 from assetlake.domain.access.access import AbstractAccessDomain
@@ -71,6 +73,34 @@ class AliyunAccess(
             "access_key_secret": self.access_key_secret,
         }
         return {k: v for k, v in _payload.items() if v is not None}
+
+    def to_duckdb(
+        self,
+        conn: DuckDBPyConnection,
+        region: str | None = None,
+        endpoint: str | None = None,
+    ) -> DuckDBPyConnection:
+        _key_id = self.access_key_id
+        _secret = self.access_key_secret
+        if not _key_id or not _secret:
+            return conn
+        else:
+            _name = self.name or "aliyun_access"
+            _config = {
+                "TYPE": "s3",
+                "PROVIDER": "config",
+                "KEY_ID": _key_id,
+                "SECRET": _secret,
+                "REGION": region,
+                "ENDPOINT": endpoint,
+                "URL_STYLE": "vhost",
+            }
+            _config = {k: v for k, v in _config.items() if v is not None}
+            _sql = f"CREATE OR REPLACE SECRET {_name} ("
+            _sql += ", ".join([f"{k} '{v}'" for k, v in _config.items()])
+            _sql += ");"
+            conn.execute(_sql)
+            return conn
 
     def export(self) -> dict[str, str | None]:
         _key_id = self.access_key_id

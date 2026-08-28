@@ -28,6 +28,9 @@ class TestIAccessLike:
             def get_fsspec_opts(self):
                 return {}
 
+            def to_duckdb(self, conn, **kwargs):
+                return conn
+
             def export(self):
                 return {}
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+import duckdb
+from duckdb import DuckDBPyConnection
 from pydantic import Field, computed_field
 
 from assetlake.control.access.aws.aws import AWSAccess
@@ -46,6 +48,7 @@ class S3Asset(
     IAssetLike,
 ):
     _domain_class: type[S3AssetDomain] = S3AssetDomain
+    _extra_duckdb_modules: list[str] = ["httpfs", "s3"]
 
     def __init__(
         self,
@@ -109,6 +112,18 @@ class S3Asset(
         except Exception as e:
             raise RuntimeError(f"Failed to get S3 object iterator: {e}") from e
 
+    def _get_duckdb_conn(
+        self,
+        access: AWSAccess | None = None,
+    ) -> DuckDBPyConnection:
+        conn = duckdb.connect(database=":memory:")
+        for module in self._extra_duckdb_modules:
+            conn.execute(f"INSTALL {module};")
+            conn.execute(f"LOAD {module};")
+        access = access or AWSAccess()
+        conn = access.to_duckdb(conn=conn)
+        return conn
+
     def inspect(
         self,
         since: datetime | None = None,
@@ -160,4 +175,32 @@ class S3Asset(
 
         _min_datetime = datetime.min.replace(tzinfo=timezone.utc)
         _results.sort(key=lambda x: x.modified_at or _min_datetime, reverse=True)
+        return _results
+
+    def quality(
+        self,
+        conn: DuckDBPyConnection | None = None,
+        access: AWSAccess | None = None,
+        objects: list[S3AssetObject] | None = None,
+    ) -> list[dict[str, Any]]:
+        if self.domain.objectkind != AssetObjectkind.PARQUET:
+            raise ValueError("Quality check is only supported for PARQUET")
+
+        # Ensure duckdb connection
+        conn = conn or self._get_duckdb_conn(access=access)
+
+        # Build query
+        if not objects:
+            _glob = self.domain.glob
+            _params = (_glob,)
+        else:
+            _uris = [obj.uri for obj in objects]
+            _params = (_uris,)
+
+        # Run query check
+        _stmt = "SELECT * from parquet_metadata(?);"
+        _cursor = conn.execute(_stmt, _params)
+        _columns = [desc[0] for desc in _cursor.description]
+        _rows = _cursor.fetchall()
+        _results = [dict(zip(_columns, row)) for row in _rows]
         return _results

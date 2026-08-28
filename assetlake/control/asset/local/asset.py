@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+import duckdb
+from duckdb import DuckDBPyConnection
 from fsspec.implementations.local import LocalFileSystem
 
 from assetlake.control.access.local.local import LocalAccess
@@ -26,6 +28,7 @@ class LocalAsset(
     IAssetLike,
 ):
     _domain_class: type[LocalAssetDomain] = LocalAssetDomain
+    _extra_duckdb_modules: list[str] = []
 
     def __init__(
         self,
@@ -58,6 +61,18 @@ class LocalAsset(
             return LocalFileSystem(auto_mkdir=True, **_opts)
         else:
             return LocalFileSystem(auto_mkdir=True)
+
+    def _get_duckdb_conn(
+        self,
+        access: LocalAccess | None = None,
+    ) -> DuckDBPyConnection:
+        conn = duckdb.connect(database=":memory:")
+        for module in self._extra_duckdb_modules:
+            conn.execute(f"INSTALL {module};")
+            conn.execute(f"LOAD {module};")
+        access = access or LocalAccess()
+        conn = access.to_duckdb(conn=conn)
+        return conn
 
     def inspect(
         self,
@@ -112,4 +127,31 @@ class LocalAsset(
 
         _min_datetime = datetime.min.replace(tzinfo=timezone.utc)
         _results.sort(key=lambda x: x.modified_at or _min_datetime, reverse=True)
+        return _results
+
+    def quality(
+        self,
+        conn: DuckDBPyConnection | None = None,
+        access: LocalAccess | None = None,
+        objects: list[LocalAssetObject] | None = None,
+    ) -> dict[str, Any]:
+        if self.domain.objectkind != AssetObjectkind.PARQUET:
+            raise ValueError("Quality check is only supported for PARQUET")
+
+        # Ensure duckdb connection
+        conn = conn or self._get_duckdb_conn(access=access)
+
+        # Build query
+        if not objects:
+            _glob = self.domain.glob
+            _param = (_glob,)
+        else:
+            _uris = [obj.uri for obj in objects]
+            _param = (_uris,)
+
+        _stmt = "SELECT * FROM parquet_metadata(?);"
+        _cursor = conn.execute(_stmt, _param)
+        _columns = [desc[0] for desc in _cursor.description]
+        _rows = _cursor.fetchall()
+        _results = [dict(zip(_columns, row)) for row in _rows]
         return _results

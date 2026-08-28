@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from duckdb import DuckDBPyConnection
-from typing import Any
 
 from assetlake.control.access.base.factory import AccessFactory
 from assetlake.control.access.base.protocol import IAccessLike
@@ -55,7 +54,15 @@ class LocalAccess(
         )
 
     def get_fsspec_opts(self) -> dict[str, str | None]:
+        # No ops for local access
         return {}
+
+    def to_duckdb(
+        self,
+        conn: DuckDBPyConnection,
+    ) -> DuckDBPyConnection:
+        # No ops for local access
+        return conn
 
     def export(self) -> dict[str, str | None]:
         return {

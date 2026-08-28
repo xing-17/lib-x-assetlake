@@ -346,3 +346,173 @@ class TestS3AssetGetClient:
         with patch.dict("sys.modules", {"boto3": None}):
             with pytest.raises(ImportError, match="boto3"):
                 asset._get_client()
+
+
+class TestS3AssetQuality:
+    """Test S3Asset.quality() method."""
+
+    def test_quality_raises_error_for_non_parquet(self):
+        """Test that quality() raises ValueError for non-PARQUET objectkind."""
+        asset = S3Asset(
+            glob="s3://bucket/data/**/*.csv",
+            objectkind=AssetObjectkind.CSV,
+        )
+
+        with pytest.raises(ValueError, match="Quality check is only supported for PARQUET"):
+            asset.quality()
+
+    def test_quality_with_glob_pattern(self):
+        """Test quality() with glob pattern (no specific objects)."""
+        from unittest.mock import MagicMock
+
+        asset = S3Asset(
+            glob="s3://bucket/data/**/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # Mock DuckDB connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.description = [
+            ("file_name",),
+            ("row_group_id",),
+            ("total_compressed_size",),
+            ("total_uncompressed_size",),
+        ]
+        mock_cursor.fetchall.return_value = [
+            ("s3://bucket/data/file1.parquet", 0, 1024, 2048),
+            ("s3://bucket/data/file2.parquet", 0, 2048, 4096),
+        ]
+        mock_conn.execute.return_value = mock_cursor
+
+        with patch.object(asset, "_get_duckdb_conn", return_value=mock_conn):
+            results = asset.quality()
+
+        assert len(results) == 2
+        assert results[0]["file_name"] == "s3://bucket/data/file1.parquet"
+        assert results[0]["total_compressed_size"] == 1024
+        assert results[1]["file_name"] == "s3://bucket/data/file2.parquet"
+
+        # Verify the correct SQL was called
+        mock_conn.execute.assert_called_once()
+        call_args = mock_conn.execute.call_args
+        assert "parquet_metadata" in call_args[0][0]
+        assert call_args[0][1] == ("s3://bucket/data/**/*.parquet",)
+
+    def test_quality_with_specific_objects(self):
+        """Test quality() with specific S3AssetObject list."""
+        from unittest.mock import MagicMock
+
+        asset = S3Asset(
+            glob="s3://bucket/data/**/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # Create mock objects
+        obj1 = S3AssetObject(
+            uri="s3://bucket/data/file1.parquet",
+            size=1024,
+            modified_at=datetime.now(timezone.utc),
+        )
+        obj2 = S3AssetObject(
+            uri="s3://bucket/data/file2.parquet",
+            size=2048,
+            modified_at=datetime.now(timezone.utc),
+        )
+        objects = [obj1, obj2]
+
+        # Mock DuckDB connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.description = [
+            ("file_name",),
+            ("row_group_id",),
+            ("total_compressed_size",),
+        ]
+        mock_cursor.fetchall.return_value = [
+            ("s3://bucket/data/file1.parquet", 0, 1024),
+            ("s3://bucket/data/file2.parquet", 0, 2048),
+        ]
+        mock_conn.execute.return_value = mock_cursor
+
+        with patch.object(asset, "_get_duckdb_conn", return_value=mock_conn):
+            results = asset.quality(objects=objects)
+
+        assert len(results) == 2
+
+        # Verify the correct URIs were passed
+        mock_conn.execute.assert_called_once()
+        call_args = mock_conn.execute.call_args
+        assert "parquet_metadata" in call_args[0][0]
+        assert call_args[0][1] == ([obj1.uri, obj2.uri],)
+
+    def test_quality_with_custom_connection(self):
+        """Test quality() with a provided DuckDB connection."""
+        from unittest.mock import MagicMock
+
+        asset = S3Asset(
+            glob="s3://bucket/data/**/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # Mock DuckDB connection
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("file_name",), ("row_group_id",)]
+        mock_cursor.fetchall.return_value = [
+            ("s3://bucket/data/file1.parquet", 0),
+        ]
+        mock_conn.execute.return_value = mock_cursor
+
+        results = asset.quality(conn=mock_conn)
+
+        assert len(results) == 1
+        assert results[0]["file_name"] == "s3://bucket/data/file1.parquet"
+
+        # Verify _get_duckdb_conn was NOT called when conn is provided
+        mock_conn.execute.assert_called_once()
+
+    def test_quality_returns_empty_list_for_no_files(self):
+        """Test quality() returns empty list when no parquet files match."""
+        from unittest.mock import MagicMock
+
+        asset = S3Asset(
+            glob="s3://bucket/data/**/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        # Mock DuckDB connection with empty results
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("file_name",)]
+        mock_cursor.fetchall.return_value = []
+        mock_conn.execute.return_value = mock_cursor
+
+        with patch.object(asset, "_get_duckdb_conn", return_value=mock_conn):
+            results = asset.quality()
+
+        assert results == []
+
+    def test_quality_with_access_parameter(self):
+        """Test quality() passes access parameter to _get_duckdb_conn."""
+        from unittest.mock import MagicMock
+
+        from assetlake.control.access.aws.aws import AWSAccess
+
+        asset = S3Asset(
+            glob="s3://bucket/data/**/*.parquet",
+            objectkind=AssetObjectkind.PARQUET,
+        )
+
+        mock_access = MagicMock(spec=AWSAccess)
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("file_name",)]
+        mock_cursor.fetchall.return_value = []
+        mock_conn.execute.return_value = mock_cursor
+
+        with patch.object(asset, "_get_duckdb_conn", return_value=mock_conn) as mock_get_conn:
+            asset.quality(access=mock_access)
+
+            # Verify access was passed to _get_duckdb_conn
+            mock_get_conn.assert_called_once_with(access=mock_access)
