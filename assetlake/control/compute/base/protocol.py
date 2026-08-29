@@ -9,11 +9,6 @@ from assetlake.domain.compute.runtime import ComputeRuntime
 
 
 @runtime_checkable
-class ISubmitHandleLike(Protocol):
-    def collect(self) -> dict[str, Any]: ...
-
-
-@runtime_checkable
 class IComputeLike(Protocol):
     name: str
     runtime: ComputeRuntime
@@ -30,18 +25,6 @@ class IComputeLike(Protocol):
         cls,
         domain: AbstractComputeDomain,
     ) -> IComputeLike: ...
-
-    def execute(
-        self,
-        params: dict[str, Any] | None = None,
-        access: IAccessLike | None = None,
-    ) -> dict[str, Any]: ...
-
-    def submit(
-        self,
-        params: dict[str, Any] | None = None,
-        access: IAccessLike | None = None,
-    ) -> ISubmitHandleLike: ...
 
     def inspect(
         self,

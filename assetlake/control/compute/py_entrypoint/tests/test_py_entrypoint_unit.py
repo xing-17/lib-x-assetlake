@@ -124,6 +124,11 @@ class TestExecuteInQueue:
 class TestPyEntrypointCompute:
     """Test PyEntrypointCompute class."""
 
+    def setup_method(self):
+        """Ensure PyEntrypointCompute is registered before each test."""
+        if ComputeRuntime.PY_ENTRYPOINT not in ComputeFactory._registry:
+            ComputeFactory._registry[ComputeRuntime.PY_ENTRYPOINT] = PyEntrypointCompute
+
     def test_protocol_compliance(self):
         """Test that PyEntrypointCompute implements IComputeLike protocol."""
         compute = PyEntrypointCompute(

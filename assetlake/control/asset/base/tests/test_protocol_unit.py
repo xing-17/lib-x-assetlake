@@ -92,11 +92,15 @@ class TestIAssetLike:
             def from_dict(cls, data):
                 return cls()
 
-            def inspect(self, since=None, until=None, limit=None, access=None):
-                return []
+            @classmethod
+            def from_domain(cls, domain):
+                return cls()
 
-            def quality(self, objects=None, since=None, until=None, limit=None, access=None):
-                pass
+            def inspect(self, since=None, until=None, limit=None, access=None):
+                return None
+
+            def quality(self, conn=None, access=None, objects=None):
+                return {}
 
             def export(self):
                 return {}
@@ -120,7 +124,7 @@ class TestIAssetLike:
             owner: str | None = "test_owner"
             metadata: dict[str, any] = {}
             tags: dict[str, str] = {}
-            # Missing from_dict, inspect, quality, export, describe
+            # Missing from_dict, from_domain, inspect, quality, export, describe
 
         instance = IncompleteAsset()
         assert not isinstance(instance, IAssetLike)
@@ -146,10 +150,12 @@ class TestIAssetLike:
         assert hasattr(asset, "tags")
 
     def test_protocol_has_required_methods(self):
-        """Test that protocol requires from_dict, inspect, quality, export, describe."""
+        """Test that protocol requires from_dict, from_domain, inspect, quality, export, describe."""
         from assetlake.control.asset.local import LocalAsset
 
         assert hasattr(LocalAsset, "from_dict")
+        assert hasattr(LocalAsset, "from_domain")
         assert hasattr(LocalAsset, "inspect")
+        assert hasattr(LocalAsset, "quality")
         assert hasattr(LocalAsset, "export")
         assert hasattr(LocalAsset, "describe")

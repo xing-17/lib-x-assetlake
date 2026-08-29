@@ -6,7 +6,6 @@ from multiprocessing import Process, Queue
 
 import pytest
 
-from assetlake.control.compute.base.protocol import ISubmitHandleLike
 from assetlake.control.compute.py_entrypoint.handle import PyEntrypointHandle
 
 
@@ -33,15 +32,6 @@ def _worker_none(q):
 
 class TestPyEntrypointHandle:
     """Test PyEntrypointHandle class."""
-
-    def test_protocol_compliance(self):
-        """Test that PyEntrypointHandle implements ISubmitHandleLike protocol."""
-        queue = Queue()
-        process = Process(target=lambda: None, daemon=True)
-
-        handle = PyEntrypointHandle(process=process, queue=queue)
-        assert isinstance(handle, ISubmitHandleLike)
-        assert hasattr(handle, "collect")
 
     def test_init(self):
         """Test handle initialization."""

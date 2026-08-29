@@ -2,38 +2,8 @@
 
 from __future__ import annotations
 
-from assetlake.control.compute.base.protocol import IComputeLike, ISubmitHandleLike
+from assetlake.control.compute.base.protocol import IComputeLike
 from assetlake.domain.compute.runtime import ComputeRuntime
-
-
-class TestISubmitHandleLike:
-    """Test ISubmitHandleLike protocol."""
-
-    def test_protocol_runtime_checkable(self):
-        """Test that ISubmitHandleLike is runtime checkable."""
-
-        class ConcreteSubmitHandle:
-            def collect(self):
-                return {"status": "success"}
-
-        instance = ConcreteSubmitHandle()
-        assert isinstance(instance, ISubmitHandleLike)
-
-    def test_protocol_missing_method_fails_check(self):
-        """Test that missing protocol methods fail instance check."""
-
-        class IncompleteSubmitHandle:
-            pass
-
-        instance = IncompleteSubmitHandle()
-        assert not isinstance(instance, ISubmitHandleLike)
-
-    def test_protocol_has_collect_method(self):
-        """Test that protocol requires collect method."""
-        from assetlake.control.compute.py_entrypoint import PyEntrypointHandle
-
-        handle = PyEntrypointHandle(queue=None, process=None)
-        assert hasattr(handle, "collect")
 
 
 class TestIComputeLike:
@@ -43,6 +13,8 @@ class TestIComputeLike:
         """Test that IComputeLike is runtime checkable."""
 
         class ConcreteCompute:
+            _default_interval: int = 60
+            _default_timeout: int = 300
             name: str = "test"
             runtime: ComputeRuntime = ComputeRuntime.PY_ENTRYPOINT
             tags: dict[str, str] = {}
@@ -109,8 +81,6 @@ class TestIComputeLike:
 
         assert hasattr(PyEntrypointCompute, "from_dict")
         assert hasattr(PyEntrypointCompute, "from_domain")
-        assert hasattr(PyEntrypointCompute, "execute")
-        assert hasattr(PyEntrypointCompute, "submit")
         assert hasattr(PyEntrypointCompute, "inspect")
         assert hasattr(PyEntrypointCompute, "export")
         assert hasattr(PyEntrypointCompute, "describe")
@@ -128,19 +98,6 @@ class TestIComputeLike:
         # Should accept these parameters without error
         result = compute.execute(params={}, access=None)
         assert isinstance(result, dict)
-
-    def test_protocol_submit_returns_handle(self):
-        """Test that submit method returns ISubmitHandleLike."""
-        from assetlake.control.compute.py_entrypoint import PyEntrypointCompute
-
-        compute = PyEntrypointCompute(
-            name="test",
-            entrypoint="os.getcwd",
-            tags={},
-        )
-
-        handle = compute.submit(params={}, access=None)
-        assert isinstance(handle, ISubmitHandleLike)
 
     def test_protocol_inspect_returns_list(self):
         """Test that inspect method returns list."""

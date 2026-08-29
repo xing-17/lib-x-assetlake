@@ -10,12 +10,12 @@ class ComputeRuntime(StrEnum):
     Values:
         PY_ENTRYPOINT: Local Python entrypoint.
         FC: Alibaba Cloud Function Compute.
-        LAMBDA: AWS Lambda.
         GLUE: AWS Glue.
+        STEP_FUNCTION: AWS Step Functions.
 
     """
 
     PY_ENTRYPOINT = "py_entrypoint"
     FC = "fc"
-    LAMBDA = "lambda"
     GLUE = "glue"
+    STEP_FUNCTION = "step_function"

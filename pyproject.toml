@@ -52,7 +52,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lib-x-assetlake*"]
+include = ["assetlake*"]
 exclude = ["tests*"]
 
 [tool.ruff]

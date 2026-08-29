@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import time
 from datetime import datetime
 from typing import Any
 
 from pydantic import Field
 
 from assetlake.control.access.aws.aws import AWSAccess
-from assetlake.control.compute.aws_glue._constants import _TERMINAL_STATES
-from assetlake.control.compute.aws_glue.handle import GlueJobHandle
 from assetlake.control.compute.base.factory import ComputeFactory
 from assetlake.control.compute.base.protocol import IComputeLike
 from assetlake.domain.compute.compute import AbstractComputeDomain
@@ -18,17 +15,9 @@ from assetlake.internal.idomainobject import IDomainObject
 
 class GlueJobComputeDomain(AbstractComputeDomain):
     runtime: ComputeRuntime = ComputeRuntime.GLUE
-    job_name: str = Field(
-        ...,
-        description="AWS Glue job name",
-    )
     region: str | None = Field(
         default=None,
         description="AWS region override",
-    )
-    default_args: dict[str, str] = Field(
-        default_factory=dict,
-        description="Default job arguments (keys prefixed with '--')",
     )
 
 
@@ -38,24 +27,18 @@ class GlueJobCompute(
     IComputeLike,
 ):
     _domain_class = GlueJobComputeDomain
-    _default_timeout = 3600  # seconds
-    _default_interval = 10  # seconds
 
     def __init__(
         self,
         name: str,
-        job_name: str,
         region: str | None = None,
-        default_args: dict[str, str] | None = None,
         tags: dict[str, str] | None = None,
     ) -> None:
         super().__init__(
             name=name,
             runtime=ComputeRuntime.GLUE,
-            job_name=job_name,
             region=region,
-            default_args=default_args or {},
-            tags=tags or {},
+            tags=tags,
         )
 
     def _get_client(
@@ -81,82 +64,6 @@ class GlueJobCompute(
         except Exception as e:
             raise RuntimeError(f"Failed to create Glue client: {e}") from e
 
-    def _build_args(
-        self,
-        params: dict[str, Any] | None,
-    ) -> dict[str, str]:
-        args = dict(self.domain.default_args)
-        if params:
-            for k, v in params.items():
-                key = k if k.startswith("--") else f"--{k}"
-                args[key] = str(v)
-        return args
-
-    def execute(
-        self,
-        params: dict[str, Any] | None = None,
-        access: AWSAccess | None = None,
-        interval: int = 5,
-        timeout: int | None = None,
-    ) -> dict[str, Any]:
-        _timeout = timeout or self._default_timeout
-        _interval = interval or self._default_interval
-        _iters = max(1, _timeout // _interval)
-        _job = self.domain.job_name
-        _client = self._get_client(access)
-        _args = self._build_args(params)
-        try:
-            response = _client.start_job_run(
-                JobName=_job,
-                Arguments=_args,
-            )
-        except Exception as e:
-            raise RuntimeError(f"Failed to start job '{_job}': {e}") from e
-
-        _rid: str = response["JobRunId"]
-        for _ in range(_iters):
-            _resp = _client.get_job_run(
-                JobName=_job,
-                RunId=_rid,
-            )
-            _run = _resp["JobRun"]
-            state = _run["JobRunState"]
-            if state in _TERMINAL_STATES:
-                if state != "SUCCEEDED":
-                    msg = _run.get("ErrorMessage", "")
-                    error = f"Job '{_job}' run '{_rid}' failed at '{state}': {msg}"
-                    raise RuntimeError(error)
-                return {"result": _resp}
-            else:
-                time.sleep(_interval)
-
-        error = f"Job '{_job}' run '{_rid}' timeout after {_timeout} seconds."
-        raise TimeoutError(error)
-
-    def submit(
-        self,
-        params: dict[str, Any] | None = None,
-        access: AWSAccess | None = None,
-    ) -> GlueJobHandle:
-        _job = self.domain.job_name
-        _client = self._get_client(access)
-        _args = self._build_args(params)
-        try:
-            response = _client.start_job_run(
-                JobName=_job,
-                Arguments=_args,
-            )
-        except Exception as e:
-            _error = f"Failed to submit Glue job '{_job}': {e}"
-            raise RuntimeError(_error) from e
-
-        run_id: str = response["JobRunId"]
-        return GlueJobHandle(
-            client=_client,
-            job=_job,
-            run_id=run_id,
-        )
-
     def inspect(
         self,
         since: datetime | None = None,
@@ -164,7 +71,7 @@ class GlueJobCompute(
         limit: int | None = None,
         access: AWSAccess | None = None,
     ) -> list[dict[str, Any]]:
-        _job = self.domain.job_name
+        _job = self.domain.name
         _client = self._get_client(access)
         try:
             paginator = _client.get_paginator("get_job_runs")
@@ -184,7 +91,7 @@ class GlueJobCompute(
                 results.append(
                     {
                         "run_id": run.get("Id"),
-                        "job_name": run.get("JobName"),
+                        "name": run.get("JobName"),
                         "state": run.get("JobRunState"),
                         "started_on": started_on,
                         "completed_on": run.get("CompletedOn"),

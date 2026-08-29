@@ -3,10 +3,8 @@ from __future__ import annotations
 from multiprocessing import Process, Queue
 from typing import Any
 
-from assetlake.control.compute.base.protocol import ISubmitHandleLike
 
-
-class PyEntrypointHandle(ISubmitHandleLike):
+class PyEntrypointHandle:
     """
     Handle class for managing asynchronous execution of tasks.
 
@@ -19,6 +17,8 @@ class PyEntrypointHandle(ISubmitHandleLike):
 
     """
 
+    _default_timeout: int = 3600  # seconds
+
     def __init__(
         self,
         process: Process,
@@ -27,9 +27,21 @@ class PyEntrypointHandle(ISubmitHandleLike):
         self.process = process
         self.queue = queue
 
-    def collect(self) -> dict[str, Any]:
-        success, result = self.queue.get()
-        self.process.join()
+    def _resolve_timeout(
+        self,
+        timeout: int | None = None,
+    ) -> int:
+        if timeout is None:
+            return self._default_timeout
+        return timeout
+
+    def collect(
+        self,
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
+        _timeout = self._resolve_timeout(timeout)
+        success, result = self.queue.get(timeout=_timeout)
+        self.process.join(timeout=_timeout)
         if not success:
             raise result
         return {"result": result}

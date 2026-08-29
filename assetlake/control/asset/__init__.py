@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from assetlake.control.access.base.factory import AccessFactory
+from assetlake.control.access.base.protocol import IAccessLike
 from assetlake.control.asset import (
     local,  # NoQA: F401
     oss,  # NoQA: F401
@@ -31,4 +33,6 @@ __all__ = [
     "S3Asset",
     "S3AssetDomain",
     "S3AssetObject",
+    "IAccessLike",
+    "AccessFactory",
 ]

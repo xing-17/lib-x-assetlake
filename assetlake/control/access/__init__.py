@@ -13,6 +13,8 @@ from assetlake.control.access.aws import (
     AWSAccess,
     AWSAccessDomain,
 )
+from assetlake.control.access.base.factory import AccessFactory
+from assetlake.control.access.base.protocol import IAccessLike
 from assetlake.control.access.local import (
     LocalAccess,
     LocalAccessDomain,
@@ -25,4 +27,6 @@ __all__ = [
     "AliyunAccessDomain",
     "AWSAccess",
     "AWSAccessDomain",
+    "AccessFactory",
+    "IAccessLike",
 ]

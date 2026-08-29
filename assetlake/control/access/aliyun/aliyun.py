@@ -20,8 +20,6 @@ class AliyunAccessDomain(AbstractAccessDomain):
         platform: AccessPlatform fixed to ALIYUN.
         access_key_id: 阿里云访问密钥ID。
         access_key_secret: 阿里云访问密钥Secret。
-        region: 阿里云区域。
-        internal: 是否使用内网访问阿里云服务。
         tags: 与访问配置文件关联的标签字典。
 
     """

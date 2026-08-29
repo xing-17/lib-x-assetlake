@@ -1,8 +1,29 @@
-from .access.aliyun import AliyunAccess
-from .access.aws import AWSAccess
-from .access.base.factory import AccessFactory
-from .access.base.protocol import IAccessLike
-from .access.local import LocalAccess
+from .access import (
+    AccessFactory,
+    AliyunAccess,
+    AWSAccess,
+    IAccessLike,
+    LocalAccess,
+)
+from .asset import (
+    LocalAsset,
+    LocalAssetDomain,
+    LocalAssetObject,
+    OSSAsset,
+    OSSAssetDomain,
+    OSSAssetObject,
+    S3Asset,
+    S3AssetDomain,
+    S3AssetObject,
+)
+from .compute import (
+    ComputeFactory,
+    GlueJobCompute,
+    IComputeLike,
+    PyEntrypointCompute,
+    PyEntrypointHandle,
+    StepFunctionCompute,
+)
 
 __all__ = [
     "AliyunAccess",
@@ -10,4 +31,19 @@ __all__ = [
     "LocalAccess",
     "IAccessLike",
     "AccessFactory",
+    "LocalAsset",
+    "LocalAssetDomain",
+    "LocalAssetObject",
+    "OSSAsset",
+    "OSSAssetDomain",
+    "OSSAssetObject",
+    "S3Asset",
+    "S3AssetDomain",
+    "S3AssetObject",
+    "ComputeFactory",
+    "IComputeLike",
+    "GlueJobCompute",
+    "PyEntrypointCompute",
+    "PyEntrypointHandle",
+    "StepFunctionCompute",
 ]

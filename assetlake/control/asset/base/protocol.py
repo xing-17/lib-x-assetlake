@@ -6,6 +6,7 @@ from typing import Any, Protocol, runtime_checkable
 from duckdb import DuckDBPyConnection
 
 from assetlake.control.access.base.protocol import IAccessLike
+from assetlake.domain.asset.asset import AbstractAssetDomain
 from assetlake.domain.asset.filesystem import AssetFilesystem
 from assetlake.domain.asset.objectkind import AssetObjectkind
 
@@ -43,6 +44,12 @@ class IAssetLike(Protocol):
     def from_dict(
         cls,
         data: dict[str, Any],
+    ) -> IAssetLike: ...
+
+    @classmethod
+    def from_domain(
+        cls,
+        domain: AbstractAssetDomain,
     ) -> IAssetLike: ...
 
     def inspect(

@@ -19,7 +19,6 @@ class AbstractComputeDomain(
     Attributes:
         name (str): Name of the compute resource.
         runtime (ComputeRuntime): Runtime kind of the compute resource (e.g., local_py_entrypoint).
-        sync (bool): Whether the compute resource is synchronous.
         tags (dict[str, str]): Tags associated with the compute resource.
 
     Methods:
@@ -38,10 +37,6 @@ class AbstractComputeDomain(
     runtime: ComputeRuntime = Field(
         ...,
         description="Runtime kind of the compute resource",
-    )
-    sync: bool = Field(
-        default=False,
-        description="Whether the compute resource is synchronous",
     )
     tags: dict[str, str] = Field(
         default_factory=dict,

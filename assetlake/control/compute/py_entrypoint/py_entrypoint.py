@@ -87,8 +87,9 @@ class PyEntrypointCompute(
         self,
         params: dict[str, Any] | None = None,
         access: LocalAccess | None = None,
+        timeout: int | None = None,
     ) -> dict[str, Any]:
-        # Access only for granularity
+        # Access and timeout only for granularity
         if params is None:
             params = {}
         _callable = self._resolve_entrypoint()
